@@ -1,131 +1,56 @@
-# Bancos de Dados Relacionais (SQL) na AWS com Amazon RDS
+# Banco de Dados Relacional (SQL) na AWS com Amazon RDS
 
+Este projeto demonstra como configurar e interagir com um banco de dados MySQL hospedado no Amazon RDS, utilizando a AWS Lambda para realizar consultas SQL diretamente no banco de dados.
 
-## Serviços utilizados
+## Serviços Utilizados
 
-- Amazon RDS
-- AWS Lambda
-- MySQL Workbench
+- **Amazon RDS**: Serviço de banco de dados relacional gerenciado.
+- **AWS Lambda**: Funções serverless para executar código sem precisar provisionar ou gerenciar servidores.
+- **MySQL**: Banco de dados relacional para armazenamento de dados.
 
-## Criando o banco de dados no Amazon RDS
+---
 
-- AWS Console -> Amazon RDS -> Create database -> Standard create -> MySQL -> Versão padrão -> Free Tier -> DB instance identifier [dio-live-db] -> Master username [admin] -> Master password [sua_senha_forte] -> DB instance size - padrão -> Storage - configurações padrão -> Connectivity - vpc padrão -> Publicly accessible [yes] -> VPC Security - padrão -> Database authentication [password authentication] -> Create database
-- Selecionar o DB criado -> Connectivity & security -> Copiar endpoint.
+## Passo a Passo
 
-### No MySQL Workbench
+### 1. Criando o Banco de Dados no Amazon RDS
 
-- MySQL Connections -> New -> Connection name [DioLive] -> Hostname - colar o endpoint copiado no passo anterior -> Username [admin] -> Teste Connection -> Password [sua_senha]
+1. Acesse o console AWS e vá para **Amazon RDS**.
+2. Clique em **Criar banco de dados**.
+3. Escolha a opção **Criação padrão**.
+4. Selecione **MySQL** e a versão padrão.
+5. Escolha a opção **Free Tier** para aproveitar o nível gratuito.
+6. Configure as opções do banco de dados:
+   - **Identificador da instância de banco de dados**: `dio-live-db`
+   - **Nome de usuário mestre**: `admin`
+   - **Senha mestre**: `sua_senha_forte`
+   - **Tamanho da instância do banco de dados**: Padrão
+   - **Armazenamento**: Configurações padrão
+   - **Conectividade**: VPC padrão
+   - **Acessível publicamente**: Sim
+   - **Segurança VPC**: Padrão
+   - **Autenticação de banco de dados**: Senha
+7. Clique em **Criar banco de dados**.
 
-#### Em caso de problemas na conexão
+---
 
-- Security -> VPC security groups -> Acessar o SG criado -> Inbound -> Edit -> Add rule -> type [All traffic] -> Source [Anywhere] -> Save
+### 2. Conectando ao Banco de Dados
 
-### No MySQL Workbench
+1. Selecione o banco de dados criado no console AWS.
+2. Vá para **Conectividade e segurança** e copie o **endpoint**.
+3. No seu cliente MySQL (pode ser no terminal ou ferramenta como o MySQL Workbench), crie uma nova conexão:
+   - **Nome da conexão**: `DioLive`
+   - **Hostname**: Cole o endpoint copiado.
+   - **Nome de usuário**: `admin`
+   - **Senha**: A senha definida durante a criação do banco.
 
-- Selecionar a conexão criada -> Password [sua_senha_forte]
+---
 
-## Criando queries
+### 3. Configurando Regras de Segurança
 
- - Criar um database:
- 
-    ```CREATE DATABASE PERMISSIONS_DB;```
+1. Acesse o console AWS e vá para **Segurança** > **Grupos de segurança VPC**.
+2. Selecione o grupo de segurança associado ao seu banco de dados.
+3. Na seção **Entrada**, edite as regras e adicione uma nova regra:
+   - **Tipo**: Todo o tráfego
+   - **Origem**: Qualquer lugar
+4. Salve as alterações para permitir conexões externas ao banco de dados.
 
-- Acessar o db criado
-
-    ```USE PERMISSIONS_DB;```
-
-- Criar uma tabela de usuários
-
-   ```
-   CREATE TABLE user (
-     id bigint(20) NOT NULL, 
-     email varchar(40) NOT NULL,
-     username varchar(15) NOT NULL,
-     password varchar(100) NOT NULL,
-     PRIMARY KEY (id)
-   );
-   ```
-    
-- Criar uma tabela de carrinho de compras
-    
-   ```
-   CREATE TABLE role (
-     id bigint(20) NOT NULL,
-     name varchar(60) NOT NULL, 
-     PRIMARY KEY (id)
-   );
-   ```
-- Criar uma tabela associativa de itens em um carrinho de compras
-
-    ```
-    CREATE TABLE ITEMS (
-      cart_id INT NOT NULL,
-      product_id INT NOT NULL,
-      quantity DECIMAL(15,2) NOT NULL,
-      FOREIGN KEY (cart_id) REFERENCES CARTS (id),
-      FOREIGN KEY (product_id) REFERENCES PRODUCTS (id)
-    );
-    ```
-- Descrevendo o esquema de uma tabela 
- 
-   ```
-   CREATE TABLE user_roles (
-     user_id bigint(20) NOT NULL,
-     role_id bigint(20) NOT NULL,
-     FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE RESTRICT ON UPDATE CASCADE,
-     FOREIGN KEY (role_id) REFERENCES role (id) ON DELETE RESTRICT ON UPDATE CASCADE,
-     PRIMARY KEY (user_id, role_id)
-   );
-   ```
-  
-- Inserindo dados em tabelas
-
-  ```
-  INSERT INTO user VALUES (1, 'cassiano@dio.me', 'Cassiano', 'strongpasswd');
-  INSERT INTO user VALUES (2, 'joao@dio.me', 'Joao', 'strongpasswd');
-
-  INSERT INTO role VALUES (3, 'ADMIN');
-  INSERT INTO role VALUES (4, 'USER');
-
-  INSERT INTO user_roles VALUES (1, 3);
-  INSERT INTO user_roles VALUES (1, 4);
-  INSERT INTO user_roles VALUES (2, 4);
-  ```
-  
-- Selecionando todos os registros de uma tabela
-
-  ```
-  SELECT * FROM [table_name];
-  ```
-- Selecionando dados da tabela associativa
-
-  ```
-  SELECT user.id, user.email, user.username, role.id AS role_id, role.name AS role_name
-  FROM user 
-  JOIN user_roles on (user.id=user_roles.user_id)
-  JOIN role on (role.id=user_roles.role_id);
-  ```
-
-## Realizando queries no Amazon RDS a partir de uma função no AWS Lambda
-
-### Criando a função Lambda
-
- - Acessar o AWS Lambda console -> Create function -> Author from scratch -> Function name [RDSQuery] -> Runtime - Python3.9 -> Create new role from AWS policy template -> Role name [RDSQueryFromLambdaRole] -> Create function
-
-### Configurando permissões de acesso ao RDS
-
-- Selecionar a função criada -> Configuration -> Permissions -> Selecionar a função criada e abrir no console do AWS IAM
-- Attach policies -> Pesquisar pela policy AWSLambdaVPCAccessExecutionRole -> Attach policy
-
-### Desenvolvendo o código da função Lambda
-
-- Editor de código da função criada -> Inserir o código disponível na pasta ```src``` deste projeto
-
-### Importando a biblioteca ```pymysql``` utilizando Lambda Layers
-
-- Lambda Dashboard -> Layers -> Create layer -> Name [pymysql_layer] -> Upload a .zip file - o arquivo ```pyton.zip``` está disponível na pasta ```src``` do projeto -> Compatible architectures x86_64 -> Compatible runtimes - Python 3.9 -> Create
-- Lambda Dashboard -> selecionar a função criada -> Layers -> Add a layer -> Custom layers -> selecionar o layer criado anteriormente -> Add
-
-### Testando a função criada
-
-- Test -> New event -> Template -> Hello World -> Name [test] -> Save changes -> Test
